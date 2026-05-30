@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍔 Mi Restaurante - Pedidos Online</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- ============================================
+         CABECERA: Logo y nombre del restaurante
+    ============================================ -->
+    <header>
+        <div class="logo">🍔 Mi Restaurante</div>
+        <p class="subtitulo">Pedidos a domicilio sin comisiones</p>
+    </header>
+
+    <!-- ============================================
+         MENÚ: Aquí se cargan los platos desde el servidor
+    ============================================ -->
+    <main>
+        <section id="menu">
+            <h2>📋 Nuestro Menú</h2>
+            <div id="lista-platos" class="grid-platos">
+                <!-- Los platos se insertan aquí automáticamente con JavaScript -->
+                <p class="cargando">Cargando menú...</p>
+            </div>
+        </section>
+
+        <!-- ============================================
+             CARRITO: Resumen del pedido actual
+        ============================================ -->
+        <section id="carrito" class="oculto">
+            <h2>🛒 Tu Pedido</h2>
+            <div id="items-carrito">
+                <!-- Items añadidos se muestran aquí -->
+            </div>
+            <div class="total">
+                <strong>Total: <span id="total-precio">0.00</span> €</strong>
+            </div>
+            <button onclick="mostrarFormulario()" class="btn-principal">
+                Continuar con el pedido →
+            </button>
+        </section>
+
+        <!-- ============================================
+             FORMULARIO: Datos del cliente para entrega
+        ============================================ -->
+        <section id="formulario-pedido" class="oculto">
+            <h2>📦 Datos de Entrega</h2>
+            <form id="pedido-form" onsubmit="enviarPedido(event)">
+                <div class="campo">
+                    <label for="nombre">Nombre completo *</label>
+                    <input type="text" id="nombre" required placeholder="Ej: Juan García">
+                </div>
+
+                <div class="campo">
+                    <label for="telefono">Teléfono</label>
+                    <input type="tel" id="telefono" placeholder="Ej: 612 345 678">
+                </div>
+
+                <div class="campo">
+                    <label for="direccion">Dirección completa *</label>
+                    <textarea id="direccion" required placeholder="Ej: Calle Mayor 5, 2ºB, 28001 Madrid"></textarea>
+                </div>
+
+                <div class="campo">
+                    <label for="pago">Método de pago</label>
+                    <select id="pago">
+                        <option value="efectivo">💵 Efectivo al recibir</option>
+                        <option value="tarjeta">💳 Tarjeta (próximamente)</option>
+                        <option value="transferencia">🏦 Transferencia</option>
+                    </select>
+                </div>
+
+                <div class="campo">
+                    <label for="notas">Notas especiales</label>
+                    <textarea id="notas" placeholder="Ej: Sin cebolla, timbre roto..."></textarea>
+                </div>
+
+                <div class="resumen-final">
+                    <h3>Resumen:</h3>
+                    <div id="resumen-items"></div>
+                    <p class="total-final">Total a pagar: <span id="total-final">0.00</span> €</p>
+                </div>
+
+                <button type="submit" class="btn-principal btn-enviar">
+                    📲 Enviar Pedido
+                </button>
+                <button type="button" onclick="volverAlMenu()" class="btn-secundario">
+                    ← Volver al menú
+                </button>
+            </form>
+        </section>
+
+        <!-- ============================================
+             CONFIRMACIÓN: Pedido enviado con éxito
+        ============================================ -->
+        <section id="confirmacion" class="oculto">
+            <div class="mensaje-exito">
+                <h2>✅ ¡Pedido Recibido!</h2>
+                <p>Tu pedido número <strong id="numero-pedido">#</strong> ha sido registrado.</p>
+                <p>Te llamaremos al teléfono proporcionado para confirmar la entrega.</p>
+                <p class="tiempo-estimado">⏱️ Tiempo estimado: 30-45 minutos</p>
+                <button onclick="nuevoPedido()" class="btn-principal">
+                    Hacer otro pedido
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- ============================================
+         PIE DE PÁGINA
+    ============================================ -->
+    <footer>
+        <p>📞 Llámanos: 912 345 678 | 🕐 Horario: 12:00 - 23:00</p>
+        <p>© 2026 Mi Restaurante - Todos los derechos reservados</p>
+    </footer>
+
+    <!-- Cargamos el JavaScript al final para que la página esté lista -->
+    <script src="app.js"></script>
+</body>
+</html>

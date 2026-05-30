@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍔 Panel de Control - Mi Restaurante</title>
+    <style>
+        /* ============================================
+           ESTILOS DEL PANEL DE ADMINISTRACIÓN
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f6fa;
+            color: #2c3e50;
+        }
+
+        /* Cabecera */
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .logo-admin {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .hora-actual {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        /* Navegación */
+        nav {
+            background: #34495e;
+            padding: 0;
+            display: flex;
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .nav-btn:hover {
+            background: #2c3e50;
+        }
+
+        .nav-btn.activo {
+            background: #2c3e50;
+            border-bottom-color: #e74c3c;
+        }
+
+        /* Contenido principal */
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .seccion {
+            display: none;
+        }
+
+        .seccion.activa {
+            display: block;
+        }
+
+        /* Tarjetas de resumen */
+        .grid-resumen {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card-resumen {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .card-resumen h3 {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-resumen .valor {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .card-resumen .valor.verde {
+            color: #27ae60;
+        }
+
+        .card-resumen .valor.rojo {
+            color: #e74c3c;
+        }
+
+        .card-resumen .tendencia {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-top: 0.5rem;
+        }
+
+        /* Tablas */
+        .tabla-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow-x: auto;
+        }
+
+        .tabla-container h2 {
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 2px solid #ecf0f1;
+            color: #7f8c8d;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* Estados de pedidos */
+        .estado {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .estado-pendiente {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .estado-preparando {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .estado-en_camino {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .estado-entregado {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .estado-cancelado {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Botones de acción */
+        .btn-accion {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-right: 0.5rem;
+            transition: opacity 0.2s;
+        }
+
+        .btn-accion:hover {
+            opacity: 0.8;
+        }
+
+        .btn-preparar {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-camino {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-entregar {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-cancelar {
+            background: #e74c3c;
+            color: white;
+        }
+
+        /* Gráficos simples */
+        .grafico-barras {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.5rem;
+            height: 200px;
+            padding: 1rem 0;
+        }
+
+        .barra {
+            flex: 1;
+            background: #e74c3c;
+            border-radius: 4px 4px 0 0;
+            min-height: 20px;
+            position: relative;
+            transition: opacity 0.2s;
+        }
+
+        .barra:hover {
+            opacity: 0.8;
+        }
+
+        .barra-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            white-space: nowrap;
+        }
+
+        .barra-valor {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        /* Top platos */
+        .top-platos {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .plato-ranking {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .ranking-numero {
+            width: 32px;
+            height: 32px;
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .ranking-info {
+            flex: 1;
+        }
+
+        .ranking-nombre {
+            font-weight: 600;
+        }
+
+        .ranking-vendidos {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+        }
+
+        .ranking-barra {
+            height: 6px;
+            background: #ecf0f1;
+            border-radius: 3px;
+            margin-top: 0.25rem;
+            overflow: hidden;
+        }
+
+        .ranking-progreso {
+            height: 100%;
+            background: #e74c3c;
+            border-radius: 3px;
+            transition: width 0.5s;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .grid-resumen {
+                grid-template-columns: 1fr;
+            }
+            
+            nav {
+                flex-wrap: wrap;
+            }
+            
+            .nav-btn {
+                flex: 1;
+                min-width: 120px;
+            }
+        }
+
+        /* Animación de actualización */
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .actualizando {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- Cabecera -->
+    <header>
+        <div class="logo-admin">🍔 Panel de Control - Mi Restaurante</div>
+        <div class="hora-actual" id="hora-actual">--:--</div>
+    </header>
+
+    <!-- Navegación -->
+    <nav>
+        <button class="nav-btn activo" onclick="mostrarSeccion('pedidos')">
+            📦 Pedidos
+        </button>
+        <button class="nav-btn" onclick="mostrarSeccion('estadisticas')">
+            📊 Estadísticas
+        </button>
+        <button class="nav-btn" onclick="mostrarSeccion('clientes')">
+            👥 Clientes
+        </button>
+    </nav>
+
+    <!-- Contenido -->
+    <main>
+        <!-- ============================================
+             SECCIÓN: PEDIDOS
+        ============================================ -->
+        <section id="seccion-pedidos" class="seccion activa">
+            <div class="grid-resumen">
+                <div class="card-resumen">
+                    <h3>Pedidos Hoy</h3>
+                    <div class="valor" id="resumen-pedidos-hoy">0</div>
+                    <div class="tendencia">Desde las 00:00</div>
+                </div>
+                <div class="card-resumen">
+                    <h3>Ingresos Hoy</h3>
+                    <div class="valor verde" id="resumen-ingresos-hoy">0€</div>
+                    <div class="tendencia">Total facturado</div>
+                </div>
+                <div class="card-resumen">
+                    <h3>Pendientes</h3>
+                    <div class="valor rojo" id="resumen-pendientes">0</div>
+                    <div class="tendencia">Por preparar</div>
+                </div>
+            </div>
+
+            <div class="tabla-container">
+                <h2>📋 Pedidos Recientes</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Teléfono</th>
+                            <th>Dirección</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                            <th>Hora</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-pedidos">
+                        <tr>
+                            <td colspan="8" style="text-align: center; color: #7f8c8d;">
+                                Cargando pedidos...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ============================================
+             SECCIÓN: ESTADÍSTICAS
+        ============================================ -->
+        <section id="seccion-estadisticas" class="seccion">
+            <div class="grid-resumen">
+                <div class="card-resumen">
+                    <h3>Pedidos esta Semana</h3>
+                    <div class="valor" id="stat-semana-pedidos">0</div>
+                </div>
+                <div class="card-resumen">
+                    <h3>Ingresos esta Semana</h3>
+                    <div class="valor verde" id="stat-semana-ingresos">0€</div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="tabla-container">
+                    <h2>🔥 Platos Más Vendidos</h2>
+                    <div class="top-platos" id="top-platos">
+                        <p style="color: #7f8c8d;">Cargando...</p>
+                    </div>
+                </div>
+
+                <div class="tabla-container">
+                    <h2>⏰ Pedidos por Hora</h2>
+                    <div class="grafico-barras" id="grafico-horas">
+                        <p style="color: #7f8c8d;">Cargando...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tabla-container" style="margin-top: 1.5rem;">
+                <h2>📊 Estado de Pedidos</h2>
+                <div id="estado-pedidos">
+                    <p style="color: #7f8c8d;">Cargando...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================
+             SECCIÓN: CLIENTES
+        ============================================ -->
+        <section id="seccion-clientes" class="seccion">
+            <div class="grid-resumen">
+                <div class="card-resumen">
+                    <h3>Total Clientes</h3>
+                    <div class="valor" id="total-clientes">0</div>
+                </div>
+                <div class="card-resumen">
+                    <h3>Cliente Top</h3>
+                    <div class="valor" id="cliente-top">-</div>
+                    <div class="tendencia" id="cliente-top-gasto">0€ gastado</div>
+                </div>
+            </div>
+
+            <div class="tabla-container">
+                <h2>👥 Base de Datos de Clientes</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Teléfono</th>
+                            <th>Dirección</th>
+                            <th>Pedidos</th>
+                            <th>Total Gastado</th>
+                            <th>Último Pedido</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-clientes">
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: #7f8c8d;">
+                                Cargando clientes...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // ============================================
+        // CONFIGURACIÓN
+        // ============================================
+        const API_URL = 'http://localhost:3000';
+
+        // ============================================
+        // NAVEGACIÓN ENTRE SECCIONES
+        // ============================================
+        function mostrarSeccion(nombre) {
+            // Ocultamos todas las secciones
+            document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('activo'));
+            
+            // Mostramos la seleccionada
+            document.getElementById('seccion-' + nombre).classList.add('activa');
+            event.target.classList.add('activo');
+            
+            // Cargamos los datos de esa sección
+            if (nombre === 'pedidos') cargarPedidos();
+            if (nombre === 'estadisticas') cargarEstadisticas();
+            if (nombre === 'clientes') cargarClientes();
+        }
+
+        // ============================================
+        // ACTUALIZAR HORA
+        // ============================================
+        function actualizarHora() {
+            const ahora = new Date();
+            document.getElementById('hora-actual').textContent = 
+                ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        }
+        setInterval(actualizarHora, 1000);
+        actualizarHora();
+
+        // ============================================
+        // CARGAR PEDIDOS
+        // ============================================
+        async function cargarPedidos() {
+            try {
+                const respuesta = await fetch(`${API_URL}/pedidos`);
+                const datos = await respuesta.json();
+                
+                if (!datos.exito) return;
+                
+                const pedidos = datos.datos;
+                const tbody = document.getElementById('tabla-pedidos');
+                
+                // Actualizar resumen
+                const hoy = new Date().toISOString().split('T')[0];
+                const pedidosHoy = pedidos.filter(p => p.creado_en.startsWith(hoy));
+                const pendientes = pedidos.filter(p => p.estado === 'pendiente');
+                
+                document.getElementById('resumen-pedidos-hoy').textContent = pedidosHoy.length;
+                document.getElementById('resumen-ingresos-hoy').textContent = 
+                    pedidosHoy.reduce((sum, p) => sum + parseFloat(p.total), 0).toFixed(2) + '€';
+                document.getElementById('resumen-pendientes').textContent = pendientes.length;
+                
+                // Llenar tabla
+                if (pedidos.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No hay pedidos aún</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = pedidos.map(p => `
+                    <tr>
+                        <td>#${p.id}</td>
+                        <td>${p.cliente_nombre}</td>
+                        <td>${p.cliente_telefono || '-'}</td>
+                        <td>${p.cliente_direccion}</td>
+                        <td>${parseFloat(p.total).toFixed(2)}€</td>
+                        <td><span class="estado estado-${p.estado}">${formatearEstado(p.estado)}</span></td>
+                        <td>${new Date(p.creado_en).toLocaleTimeString('es-ES')}</td>
+                        <td>
+                            ${botonesAccion(p.estado, p.id)}
+                        </td>
+                    </tr>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function formatearEstado(estado) {
+            const estados = {
+                'pendiente': 'Pendiente',
+                'preparando': 'Preparando',
+                'en_camino': 'En camino',
+                'entregado': 'Entregado',
+                'cancelado': 'Cancelado'
+            };
+            return estados[estado] || estado;
+        }
+
+        function botonesAccion(estado, id) {
+            if (estado === 'cancelado' || estado === 'entregado') return '-';
+            
+            let botones = '';
+            if (estado === 'pendiente') {
+                botones += `<button class="btn-accion btn-preparar" onclick="cambiarEstado(${id}, 'preparando')">👨‍🍳 Preparar</button>`;
+                botones += `<button class="btn-accion btn-cancelar" onclick="cambiarEstado(${id}, 'cancelado')">❌ Cancelar</button>`;
+            } else if (estado === 'preparando') {
+                botones += `<button class="btn-accion btn-camino" onclick="cambiarEstado(${id}, 'en_camino')">🛵 En camino</button>`;
+            } else if (estado === 'en_camino') {
+                botones += `<button class="btn-accion btn-entregar" onclick="cambiarEstado(${id}, 'entregado')">✅ Entregado</button>`;
+            }
+            return botones;
+        }
+
+        async function cambiarEstado(id, nuevoEstado) {
+            try {
+                const respuesta = await fetch(`${API_URL}/pedidos/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ estado: nuevoEstado })
+                });
+                
+                const resultado = await respuesta.json();
+                if (resultado.exito) {
+                    cargarPedidos(); // Recargar la lista
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // ============================================
+        // CARGAR ESTADÍSTICAS
+        // ============================================
+        async function cargarEstadisticas() {
+            try {
+                const respuesta = await fetch(`${API_URL}/estadisticas`);
+                const datos = await respuesta.json();
+                
+                if (!datos.exito) return;
+                
+                const d = datos.datos;
+                
+                // Resumen semana
+                document.getElementById('stat-semana-pedidos').textContent = d.semana.pedidos;
+                document.getElementById('stat-semana-ingresos').textContent = d.semana.ingresos.toFixed(2) + '€';
+                
+                // Top platos
+                const topContainer = document.getElementById('top-platos');
+                if (d.topPlatos.length === 0) {
+                    topContainer.innerHTML = '<p style="color: #7f8c8d;">No hay ventas aún</p>';
+                } else {
+                    const maxVendidos = Math.max(...d.topPlatos.map(p => parseInt(p.vendidos)));
+                    topContainer.innerHTML = d.topPlatos.map((p, i) => `
+                        <div class="plato-ranking">
+                            <div class="ranking-numero">${i + 1}</div>
+                            <div class="ranking-info">
+                                <div class="ranking-nombre">${p.nombre}</div>
+                                <div class="ranking-vendidos">${p.vendidos} vendidos · ${parseFloat(p.ingresos).toFixed(2)}€</div>
+                                <div class="ranking-barra">
+                                    <div class="ranking-progreso" style="width: ${(parseInt(p.vendidos) / maxVendidos * 100)}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+                // Gráfico por horas
+                const graficoContainer = document.getElementById('grafico-horas');
+                if (d.porHora.length === 0) {
+                    graficoContainer.innerHTML = '<p style="color: #7f8c8d;">Sin datos</p>';
+                } else {
+                    const maxCantidad = Math.max(...d.porHora.map(h => parseInt(h.cantidad)));
+                    graficoContainer.innerHTML = d.porHora.map(h => `
+                        <div class="barra" style="height: ${(parseInt(h.cantidad) / maxCantidad * 100)}%">
+                            <div class="barra-valor">${h.cantidad}</div>
+                            <div class="barra-label">${h.hora}:00</div>
+                        </div>
+                    `).join('');
+                }
+                
+                // Estados
+                const estadoContainer = document.getElementById('estado-pedidos');
+                estadoContainer.innerHTML = d.porEstado.map(e => `
+                    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #ecf0f1;">
+                        <span>${formatearEstado(e.estado)}</span>
+                        <span style="font-weight: bold;">${e.cantidad}</span>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // ============================================
+        // CARGAR CLIENTES
+        // ============================================
+        async function cargarClientes() {
+            try {
+                const respuesta = await fetch(`${API_URL}/clientes`);
+                const datos = await respuesta.json();
+                
+                if (!datos.exito) return;
+                
+                const clientes = datos.datos;
+                
+                // Resumen
+                document.getElementById('total-clientes').textContent = clientes.length;
+                
+                if (clientes.length > 0) {
+                    const top = clientes[0];
+                    document.getElementById('cliente-top').textContent = top.nombre;
+                    document.getElementById('cliente-top-gasto').textContent = 
+                        parseFloat(top.total_gastado).toFixed(2) + '€ gastado';
+                }
+                
+                // Tabla
+                const tbody = document.getElementById('tabla-clientes');
+                if (clientes.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No hay clientes registrados</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = clientes.map(c => `
+                    <tr>
+                        <td>${c.nombre}</td>
+                        <td>${c.telefono || '-'}</td>
+                        <td>${c.direccion}</td>
+                        <td>${c.total_pedidos}</td>
+                        <td>${parseFloat(c.total_gastado).toFixed(2)}€</td>
+                        <td>${new Date(c.ultimo_pedido).toLocaleDateString('es-ES')}</td>
+                    </tr>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // ============================================
+        // INICIAR
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarPedidos();
+            // Actualizar pedidos cada 30 segundos automáticamente
+            setInterval(cargarPedidos, 30000);
+        });
+    </script>
+</body>
+</html>
