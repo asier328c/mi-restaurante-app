@@ -1,137 +1,196 @@
 // ============================================
-// SERVIDOR DEL RESTAURANTE
+// SERVIDOR DEL RESTAURANTE - VERSION SQLITE
 // Este archivo es el "camarero": recibe pedidos, los guarda en la base de datos
-// y devuelve información cuando se la piden.
+// y devuelve informacion cuando se la piden.
 // ============================================
 
-// EXPRESS: Es una librería que facilita crear servidores web en Node.js
-// CORS: Permite que la página web (frontend) hable con el servidor (backend)
-// PG: Es el conector para hablar con PostgreSQL
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg');
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 
-// Creamos la aplicación Express
 const app = express();
 
-// Middleware (funciones que se ejecutan en cada petición):
-app.use(cors()); // Permite que cualquier página web use nuestra API
-app.use(express.json()); // Convierte automáticamente el JSON que recibimos en objetos JavaScript
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Servir archivos estaticos (frontend)
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 // ============================================
-// CONEXIÓN A LA BASE DE DATOS
+// CONEXION A SQLITE
 // ============================================
-// Pool es un grupo de conexiones a PostgreSQL. Reutiliza conexiones para ser más rápido.
-const pool = new Pool({
-    user: 'postgres',           // Usuario de PostgreSQL (el que pusiste al instalar)
-    host: 'localhost',          // La base de datos está en esta misma computadora
-    database: 'restaurante_db', // Nombre de la base de datos que creamos
-    password: 'admin123',       // <-- CAMBIA ESTO: Pon tu contraseña real de PostgreSQL
-    port: 5432,                 // Puerto estándar de PostgreSQL
+const dbPath = path.join(__dirname, 'restaurante.db');
+const db = new sqlite3.Database(dbPath);
+
+// Promisificar para usar async/await
+const dbAsync = {
+    query: (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.all(sql, params, (err, rows) => {
+                if (err) reject(err);
+                else resolve({ rows });
+            });
+        });
+    },
+    run: (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.run(sql, params, function(err) {
+                if (err) reject(err);
+                else resolve({ lastID: this.lastID });
+            });
+        });
+    }
+};
+
+// ============================================
+// CREAR TABLAS SI NO EXISTEN
+// ============================================
+db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS platos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        descripcion TEXT,
+        precio REAL NOT NULL,
+        categoria TEXT,
+        imagen_url TEXT,
+        disponible INTEGER DEFAULT 1,
+        creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS pedidos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cliente_nombre TEXT NOT NULL,
+        cliente_telefono TEXT,
+        cliente_direccion TEXT NOT NULL,
+        total REAL NOT NULL,
+        estado TEXT DEFAULT 'pendiente',
+        metodo_pago TEXT DEFAULT 'efectivo',
+        notas TEXT,
+        creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS items_pedido (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pedido_id INTEGER NOT NULL,
+        plato_id INTEGER NOT NULL,
+        cantidad INTEGER NOT NULL DEFAULT 1,
+        precio_unitario REAL NOT NULL,
+        subtotal REAL NOT NULL
+    )`);
+
+    // Insertar platos de ejemplo si la tabla esta vacia
+    db.get("SELECT COUNT(*) as count FROM platos", (err, row) => {
+        if (row.count === 0) {
+            const platos = [
+                ['Hamburguesa Clasica', 'Carne de res, lechuga, tomate, queso cheddar y salsa especial', 12.50, 'principal'],
+                ['Hamburguesa BBQ', 'Carne de res, cebolla caramelizada, bacon y salsa barbacoa', 14.00, 'principal'],
+                ['Pizza Margarita', 'Tomate, mozzarella fresca y albahaca', 10.00, 'principal'],
+                ['Pizza Pepperoni', 'Tomate, mozzarella y pepperoni italiano', 12.00, 'principal'],
+                ['Ensalada Cesar', 'Lechuga romana, pollo a la parrilla, crutones y aderezo cesar', 9.50, 'entrante'],
+                ['Alitas de Pollo', '6 alitas crujientes con salsa a elegir', 8.00, 'entrante'],
+                ['Patatas Bravas', 'Patatas fritas con salsa brava picante', 6.00, 'entrante'],
+                ['Refresco Cola', 'Lata 33cl', 2.50, 'bebida'],
+                ['Agua Mineral', 'Botella 50cl', 1.50, 'bebida'],
+                ['Cerveza Artesanal', 'Botella 33cl', 3.50, 'bebida'],
+                ['Tarta de Queso', 'Tarta de queso al horno con mermelada de frutos rojos', 5.50, 'postre'],
+                ['Helado Artesanal', '2 bolas de helado, sabor a elegir', 4.00, 'postre']
+            ];
+            
+            const stmt = db.prepare("INSERT INTO platos (nombre, descripcion, precio, categoria) VALUES (?, ?, ?, ?)");
+            platos.forEach(p => stmt.run(p));
+            stmt.finalize();
+            console.log('Platos de ejemplo insertados');
+        }
+    });
 });
 
 // ============================================
-// RUTAS DE LA API (los "endpoints" o direcciones que atiende el servidor)
+// RUTAS DE LA API
 // ============================================
 
 // --- GET /platos ---
-// Cuando alguien visita esta dirección, le devolvemos el menú completo
-// Ejemplo: http://localhost:3000/platos
 app.get('/platos', async (req, res) => {
     try {
-        // Consultamos todos los platos disponibles de la base de datos
-        const result = await pool.query(
-            'SELECT * FROM platos WHERE disponible = true ORDER BY categoria, nombre'
+        const result = await dbAsync.query(
+            'SELECT * FROM platos WHERE disponible = 1 ORDER BY categoria, nombre'
         );
         
-        // Enviamos los platos como respuesta en formato JSON
         res.json({
             exito: true,
-            datos: result.rows  // result.rows contiene los platos encontrados
+            datos: result.rows
         });
     } catch (error) {
-        // Si algo falla, enviamos un mensaje de error
         console.error('Error al obtener platos:', error);
         res.status(500).json({
             exito: false,
-            mensaje: 'Error al cargar el menú'
+            mensaje: 'Error al cargar el menu'
         });
     }
 });
 
 // --- POST /pedidos ---
-// Cuando un cliente hace un pedido, lo recibimos aquí y lo guardamos
-// Ejemplo: http://localhost:3000/pedidos
 app.post('/pedidos', async (req, res) => {
-    // Extraemos los datos que envió el cliente
     const {
         cliente_nombre,
         cliente_telefono,
         cliente_direccion,
-        items,           // Array de objetos: [{plato_id: 1, cantidad: 2}, ...]
+        items,
         metodo_pago,
         notas
     } = req.body;
 
-    // Validación básica: ¿vino todo lo necesario?
     if (!cliente_nombre || !cliente_direccion || !items || items.length === 0) {
         return res.status(400).json({
             exito: false,
-            mensaje: 'Faltan datos obligatorios: nombre, dirección o platos'
+            mensaje: 'Faltan datos obligatorios: nombre, direccion o platos'
         });
     }
 
-    // Usamos una transacción: si algo falla, NO se guarda nada (evita pedidos incompletos)
-    const client = await pool.connect();
-    
     try {
-        await client.query('BEGIN'); // Iniciamos la transacción
-
-        // PASO 1: Calcular el total del pedido
+        // Calcular total
         let total = 0;
         for (const item of items) {
-            const platoResult = await client.query(
-                'SELECT precio FROM platos WHERE id = $1 AND disponible = true',
+            const platoResult = await dbAsync.query(
+                'SELECT precio FROM platos WHERE id = ? AND disponible = 1',
                 [item.plato_id]
             );
             
             if (platoResult.rows.length === 0) {
-                throw new Error(`Plato con ID ${item.plato_id} no encontrado o no disponible`);
+                throw new Error(`Plato con ID ${item.plato_id} no encontrado`);
             }
             
             const precio = platoResult.rows[0].precio;
             total += precio * item.cantidad;
         }
 
-        // PASO 2: Insertar el pedido en la tabla "pedidos"
-        const pedidoResult = await client.query(
+        // Insertar pedido
+        const pedidoResult = await dbAsync.run(
             `INSERT INTO pedidos (cliente_nombre, cliente_telefono, cliente_direccion, total, metodo_pago, notas)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             RETURNING id`,
+             VALUES (?, ?, ?, ?, ?, ?)`,
             [cliente_nombre, cliente_telefono, cliente_direccion, total, metodo_pago || 'efectivo', notas]
         );
         
-        const pedidoId = pedidoResult.rows[0].id;
+        const pedidoId = pedidoResult.lastID;
 
-        // PASO 3: Insertar cada plato en "items_pedido"
+        // Insertar items
         for (const item of items) {
-            const platoResult = await client.query(
-                'SELECT precio FROM platos WHERE id = $1',
+            const platoResult = await dbAsync.query(
+                'SELECT precio FROM platos WHERE id = ?',
                 [item.plato_id]
             );
             const precioUnitario = platoResult.rows[0].precio;
             const subtotal = precioUnitario * item.cantidad;
 
-            await client.query(
+            await dbAsync.run(
                 `INSERT INTO items_pedido (pedido_id, plato_id, cantidad, precio_unitario, subtotal)
-                 VALUES ($1, $2, $3, $4, $5)`,
+                 VALUES (?, ?, ?, ?, ?)`,
                 [pedidoId, item.plato_id, item.cantidad, precioUnitario, subtotal]
             );
         }
 
-        await client.query('COMMIT'); // Confirmamos la transacción (todo se guarda)
-
-        // Enviamos respuesta de éxito al cliente
         res.status(201).json({
             exito: true,
             mensaje: 'Pedido recibido correctamente',
@@ -143,24 +202,20 @@ app.post('/pedidos', async (req, res) => {
         });
 
     } catch (error) {
-        await client.query('ROLLBACK'); // Si algo falló, deshacemos TODO
         console.error('Error al crear pedido:', error);
         res.status(500).json({
             exito: false,
             mensaje: 'Error al procesar el pedido: ' + error.message
         });
-    } finally {
-        client.release(); // Liberamos la conexión para que otros la usen
     }
 });
 
 // --- GET /pedidos ---
-// El dueño del restaurante ve todos los pedidos (para su panel de control)
 app.get('/pedidos', async (req, res) => {
     try {
-        const result = await pool.query(
+        const result = await dbAsync.query(
             `SELECT p.*, 
-                json_agg(json_build_object(
+                json_group_array(json_object(
                     'plato_id', ip.plato_id,
                     'cantidad', ip.cantidad,
                     'precio_unitario', ip.precio_unitario,
@@ -188,42 +243,30 @@ app.get('/pedidos', async (req, res) => {
 });
 
 // --- PATCH /pedidos/:id ---
-// Actualizar el estado de un pedido (ej: de "pendiente" a "en preparación")
-// :id significa "cualquier número", ej: /pedidos/5
 app.patch('/pedidos/:id', async (req, res) => {
-    const { id } = req.params; // Extraemos el ID de la URL
-    const { estado } = req.body; // Extraemos el nuevo estado del cuerpo
+    const { id } = req.params;
+    const { estado } = req.body;
 
-    // Estados permitidos
     const estadosValidos = ['pendiente', 'preparando', 'en_camino', 'entregado', 'cancelado'];
     
     if (!estadosValidos.includes(estado)) {
         return res.status(400).json({
             exito: false,
-            mensaje: 'Estado no válido. Usa: ' + estadosValidos.join(', ')
+            mensaje: 'Estado no valido'
         });
     }
 
     try {
-        const result = await pool.query(
+        await dbAsync.run(
             `UPDATE pedidos 
-             SET estado = $1, actualizado_en = CURRENT_TIMESTAMP 
-             WHERE id = $2 
-             RETURNING *`,
+             SET estado = ?, actualizado_en = CURRENT_TIMESTAMP 
+             WHERE id = ?`,
             [estado, id]
         );
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                exito: false,
-                mensaje: 'Pedido no encontrado'
-            });
-        }
-
         res.json({
             exito: true,
-            mensaje: 'Estado actualizado',
-            pedido: result.rows[0]
+            mensaje: 'Estado actualizado'
         });
     } catch (error) {
         console.error('Error al actualizar pedido:', error);
@@ -233,32 +276,26 @@ app.patch('/pedidos/:id', async (req, res) => {
         });
     }
 });
-// ============================================
-// RUTAS PARA EL PANEL DE ADMINISTRACIÓN
-// ============================================
 
 // --- GET /estadisticas ---
-// Dashboard con métricas del restaurante
 app.get('/estadisticas', async (req, res) => {
     try {
-        // Total de pedidos hoy
         const hoy = new Date().toISOString().split('T')[0];
-        const pedidosHoy = await pool.query(
+        
+        const pedidosHoy = await dbAsync.query(
             `SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as ingresos 
              FROM pedidos 
-             WHERE DATE(creado_en) = $1`,
+             WHERE DATE(creado_en) = ?`,
             [hoy]
         );
 
-        // Pedidos de la semana
-        const semana = await pool.query(
+        const semana = await dbAsync.query(
             `SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as ingresos 
              FROM pedidos 
-             WHERE creado_en >= CURRENT_DATE - INTERVAL '7 days'`
+             WHERE creado_en >= DATE('now', '-7 days')`
         );
 
-        // Platos más vendidos (top 5)
-        const topPlatos = await pool.query(
+        const topPlatos = await dbAsync.query(
             `SELECT p.nombre, SUM(ip.cantidad) as vendidos, SUM(ip.subtotal) as ingresos
              FROM items_pedido ip
              JOIN platos p ON ip.plato_id = p.id
@@ -267,20 +304,18 @@ app.get('/estadisticas', async (req, res) => {
              LIMIT 5`
         );
 
-        // Pedidos por hora (para ver horarios pico)
-        const porHora = await pool.query(
-            `SELECT EXTRACT(HOUR FROM creado_en) as hora, COUNT(*) as cantidad
+        const porHora = await dbAsync.query(
+            `SELECT strftime('%H', creado_en) as hora, COUNT(*) as cantidad
              FROM pedidos
-             WHERE creado_en >= CURRENT_DATE - INTERVAL '7 days'
+             WHERE creado_en >= DATE('now', '-7 days')
              GROUP BY hora
              ORDER BY hora`
         );
 
-        // Pedidos por estado actual
-        const porEstado = await pool.query(
+        const porEstado = await dbAsync.query(
             `SELECT estado, COUNT(*) as cantidad
              FROM pedidos
-             WHERE creado_en >= CURRENT_DATE - INTERVAL '7 days'
+             WHERE creado_en >= DATE('now', '-7 days')
              GROUP BY estado`
         );
 
@@ -288,12 +323,12 @@ app.get('/estadisticas', async (req, res) => {
             exito: true,
             datos: {
                 hoy: {
-                    pedidos: parseInt(pedidosHoy.rows[0].total),
-                    ingresos: parseFloat(pedidosHoy.rows[0].ingresos)
+                    pedidos: pedidosHoy.rows[0].total,
+                    ingresos: pedidosHoy.rows[0].ingresos
                 },
                 semana: {
-                    pedidos: parseInt(semana.rows[0].total),
-                    ingresos: parseFloat(semana.rows[0].ingresos)
+                    pedidos: semana.rows[0].total,
+                    ingresos: semana.rows[0].ingresos
                 },
                 topPlatos: topPlatos.rows,
                 porHora: porHora.rows,
@@ -301,19 +336,18 @@ app.get('/estadisticas', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error en estadísticas:', error);
+        console.error('Error en estadisticas:', error);
         res.status(500).json({
             exito: false,
-            mensaje: 'Error al cargar estadísticas'
+            mensaje: 'Error al cargar estadisticas'
         });
     }
 });
 
 // --- GET /clientes ---
-// Lista de clientes con historial para campañas de fidelización
 app.get('/clientes', async (req, res) => {
     try {
-        const result = await pool.query(
+        const result = await dbAsync.query(
             `SELECT 
                 cliente_nombre as nombre,
                 cliente_telefono as telefono,
@@ -341,14 +375,12 @@ app.get('/clientes', async (req, res) => {
 });
 
 // --- GET /pedidos/:id/detalles ---
-// Ver detalles completos de un pedido específico
 app.get('/pedidos/:id/detalles', async (req, res) => {
     const { id } = req.params;
     
     try {
-        // Info del pedido
-        const pedidoResult = await pool.query(
-            'SELECT * FROM pedidos WHERE id = $1',
+        const pedidoResult = await dbAsync.query(
+            'SELECT * FROM pedidos WHERE id = ?',
             [id]
         );
 
@@ -359,12 +391,11 @@ app.get('/pedidos/:id/detalles', async (req, res) => {
             });
         }
 
-        // Items del pedido
-        const itemsResult = await pool.query(
+        const itemsResult = await dbAsync.query(
             `SELECT ip.*, p.nombre, p.descripcion
              FROM items_pedido ip
              JOIN platos p ON ip.plato_id = p.id
-             WHERE ip.pedido_id = $1`,
+             WHERE ip.pedido_id = ?`,
             [id]
         );
 
@@ -383,13 +414,12 @@ app.get('/pedidos/:id/detalles', async (req, res) => {
         });
     }
 });
+
 // ============================================
 // INICIAR EL SERVIDOR
 // ============================================
-const PUERTO = 3000; // El servidor escuchará en el puerto 3000
+const PUERTO = process.env.PORT || 3000;
 
 app.listen(PUERTO, () => {
-    console.log(`🚀 Servidor del restaurante corriendo en http://localhost:${PUERTO}`);
-    console.log(`📋 Menú disponible en: http://localhost:${PUERTO}/platos`);
-    console.log(`📦 Pedidos en: http://localhost:${PUERTO}/pedidos`);
+    console.log(`Servidor del restaurante corriendo en puerto ${PUERTO}`);
 });
