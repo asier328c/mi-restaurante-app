@@ -1,7 +1,7 @@
 // ============================================
 // CONFIGURACIÓN
 // ============================================
-const API_URL = 'http://localhost:3000'; // Dirección de nuestro servidor
+const API_URL = 'https://mi-restaurante-app.onrender.com'; // Dirección de nuestro servidor
 
 // Variables globales (datos que guardamos mientras el usuario navega)
 let platos = [];           // Lista de platos del menú
